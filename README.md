@@ -37,12 +37,21 @@ This project is a Python-based algorithmic trading engine designed to fetch hist
 │   ├── database.py             # DB connection, Schema, CRUD operations
 │   ├── kite_api.py             # Kite API Wrapper
 │   └── orders.py               # Order logic & Signal generation
-├── verify_main.py              # Integration tests
-├── verify_orders.py            # Unit tests for strategy logic
-├── verify_pipeline.py          # Pipeline orchestration tests
+├── tests/                      # Unit & Integration Tests
+│   ├── test_database.py
+│   ├── test_instruments.py
+│   ├── test_main.py
+│   ├── test_orders.py
+│   ├── test_pipeline.py
+│   └── test_stats.py
 ├── requirements.txt            # Python dependencies
 └── .env                        # Secrets (API Keys & DB Creds)
 ```
+
+## 📋 Prerequisites
+*   **Python**: 3.13 or higher
+*   **PostgreSQL**: 14 or higher
+*   **Zerodha Kite Account**: API Key and Access Token required.
 
 ## ⚙️ Setup & Configuration
 
@@ -93,6 +102,7 @@ The core logic resides in `src/orders.py`.
 
 Run the included test suites to verify system integrity:
 ```bash
-python verify_pipeline.py  # Checks full pipeline flow
-python verify_orders.py    # Checks buy/sell signal logic
+```bash
+python3 -m unittest discover tests
+```
 ```
