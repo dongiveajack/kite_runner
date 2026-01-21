@@ -1,7 +1,7 @@
 from src.kite_api import fetch_kite_historical_data, fetch_instruments
 from src.database import save_historical_data, save_instruments, get_instruments_by_pattern, update_running_average, get_latest_stats_and_close
 from src.orders import process_order_logic
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict
 
 def ensure_target_instruments_exist(pattern: str) -> List[Dict]:
@@ -17,10 +17,22 @@ def ensure_target_instruments_exist(pattern: str) -> List[Dict]:
         try:
             all_instruments = fetch_instruments()
             if all_instruments:
-                print(f"Fetched {len(all_instruments)} instruments. Saving to database...")
-                save_instruments(all_instruments)
+                print(f"Fetched {len(all_instruments)} instruments from API.")
                 
-                # Retry fetching target instruments
+                # Filter instruments by pattern before saving
+                import fnmatch
+                # Convert SQL LIKE pattern (%) to fnmatch pattern (*)
+                fnmatch_pattern = pattern.replace('%', '*')
+                
+                filtered_instruments = [
+                    inst for inst in all_instruments 
+                    if fnmatch.fnmatch(inst['trading_symbol'], fnmatch_pattern)
+                ]
+                
+                print(f"Filtered down to {len(filtered_instruments)} instruments matching '{fnmatch_pattern}'. Saving to database...")
+                save_instruments(filtered_instruments)
+                
+                # Retry fetching target instruments (should match what we just saved)
                 target_instruments = get_instruments_by_pattern(pattern)
                 print(f"Refetched target instruments: found {len(target_instruments)} matches.")
             else:
@@ -44,11 +56,18 @@ def fetch_and_save_historical_data(instruments: List[Dict]) -> List[Dict]:
     print(f"Starting historical data fetch for {len(instruments)} instruments...")
     
     # Define time range: Current time to +5 minutes
-    now = datetime.now()
+    # AWS Lambda runs in UTC, so we must manually adjust to IST (UTC+5:30)
+    now_utc = datetime.now(timezone.utc)
+    now_ist = now_utc + timedelta(hours=5, minutes=30)
+    
+    print(f"Current Time (IST): {now_ist}")
+
+    from_date = (now_ist - timedelta(minutes=1)).strftime("%Y-%m-%d %H:%M:%S")
+    to_date = (now_ist + timedelta(minutes=4)).strftime("%Y-%m-%d %H:%M:%S")
     # from_date = now.strftime("%Y-%m-%d %H:%M:%S")
     # to_date = (now + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
-    from_date = "2026-01-08 13:00:00"
-    to_date = "2026-01-13 13:05:00"
+    # from_date = "2026-01-12 13:00:00"
+    # to_date = datetime.now()
     interval = "5minute"
     
     successful_instruments = []

@@ -291,9 +291,19 @@ def create_orders_table_if_not_exists(conn):
     """
     with conn.cursor() as cur:
         cur.execute(query)
+
+        # Check and add columns if they don't exist
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='orders'")
+        columns = [row[0] for row in cur.fetchall()]
+
+        if 'close' not in columns:
+            cur.execute("ALTER TABLE orders ADD COLUMN close DOUBLE PRECISION")
+        if 'avg_200' not in columns:
+            cur.execute("ALTER TABLE orders ADD COLUMN avg_200 DOUBLE PRECISION")
+
     conn.commit()
 
-def create_order(order_type: str, trading_symbol: str, price: float, status: str = "created"):
+def create_order(order_type: str, trading_symbol: str, price: float, close: float = None, avg_200: float = None, status: str = "created"):
     """
     Creates a new order in the database.
     """
@@ -306,10 +316,10 @@ def create_order(order_type: str, trading_symbol: str, price: float, status: str
 
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO orders (order_type, trading_symbol, price, status, created_at)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO orders (order_type, trading_symbol, price, close, avg_200, status, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id;
-            """, (order_type, trading_symbol, price, status, datetime.now()))
+            """, (order_type, trading_symbol, price, close, avg_200, status, datetime.now()))
 
             order_id = cur.fetchone()[0]
             conn.commit()
@@ -406,11 +416,11 @@ def get_instruments_by_pattern(pattern: str, date_str: str = None) -> List[Dict]
         query = """
         SELECT date, trading_symbol, instrument_token, name, instrument_type, exchange_token, exchange
         FROM instruments
-        WHERE trading_symbol LIKE %s AND date = %s;
+        WHERE trading_symbol LIKE %s;
         """
 
         with conn.cursor() as cur:
-            cur.execute(query, (pattern, date_str))
+            cur.execute(query, (pattern,))
             rows = cur.fetchall()
 
             instruments = []
